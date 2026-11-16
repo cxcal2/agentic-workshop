@@ -1,0 +1,103 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+:root {
+  --ink: #14212b;
+  --muted: #5b6b76;
+  --paper: #eef3f6;
+  --panel: rgba(255, 255, 255, 0.78);
+  --line: rgba(20, 33, 43, 0.12);
+  --accent: #0f766e;
+  --accent-deep: #0b4f4a;
+  --signal: #c45c26;
+  --new: #1d6b4f;
+  --shadow: 0 18px 50px rgba(20, 33, 43, 0.08);
+  --map: radial-gradient(circle at 12% 18%, rgba(15, 118, 110, 0.16), transparent 28%),
+    radial-gradient(circle at 88% 10%, rgba(196, 92, 38, 0.12), transparent 24%),
+    linear-gradient(160deg, #e8eef3 0%, #f4f7f9 42%, #e4ece8 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--ink);
+  background: var(--map);
+  font-family: Manrope, sans-serif;
+}
+
+body {
+  background-image: var(--map),
+    linear-gradient(rgba(20, 33, 43, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 33, 43, 0.035) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.brand {
+  font-family: Fraunces, serif;
+  letter-spacing: -0.03em;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+.fade-up {
+  animation: fade-up 0.55s ease both;
+}
+
+.fade-up-delay {
+  animation: fade-up 0.7s ease 0.08s both;
+}
+
+.pulse-dot {
+  animation: pulse 1.6s ease infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .fade-up-delay,
+  .pulse-dot {
+    animation: none;
+  }
+}

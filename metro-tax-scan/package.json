@@ -1,0 +1,35 @@
+{
+  "name": "metro-tax-scan",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "env -u DATABASE_URL next dev --turbopack",
+    "build": "next build --webpack && node scripts/migrate.mjs",
+    "start": "next start",
+    "lint": "eslint",
+    "smoke": "tsx scripts/smoke-collectors.ts",
+    "smoke:cobb": "tsx scripts/smoke-collectors.ts --cobb"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "cheerio": "^1.2.0",
+    "next": "^16.4.6",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.23.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}
