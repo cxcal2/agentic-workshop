@@ -18,6 +18,21 @@ You will complete the following 3 modules:
 2. **Build an Agentic Workflow:** Develop agentic workflows that don't rely on a chat interface.
 3. **Using 3rd Party Agentic Workflows:** Use Amazon Bedrock with popular frameworks such as LangChain, LlamaIndex, and crewAI.
 
+## Metro Tax Scan (Georgia unpaid property taxes)
+
+This repository also contains **Metro Tax Scan** under [`metro-tax-scan/`](metro-tax-scan/) — a Next.js app that scans public Georgia county tax-sale / delinquent listings.
+
+**Run it locally:** see the full step-by-step guide in [`metro-tax-scan/README.md`](metro-tax-scan/README.md) (prerequisites, install, `npm run dev`, first scan, smoke tests, APIs, and troubleshooting).
+
+Quick start:
+
+```bash
+cd metro-tax-scan
+npm install
+env -u DATABASE_URL npm run dev
+# open http://localhost:3000
+```
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
