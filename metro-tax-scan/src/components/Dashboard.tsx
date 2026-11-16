@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { COUNTY_META, type OpportunityRow } from "@/server/types";
+import type { OpportunityRow } from "@/server/types";
 
 type StatusPayload = {
   lastScan: {
@@ -18,8 +18,22 @@ type StatusPayload = {
     source_url: string;
   }[];
   stats: { active: number; newly: number; watched: number };
+  enabledCounties: string[];
+  georgiaCountyCount: number;
   viewer: { name: string; email: string };
   georgiaNote: string;
+};
+
+type CountyRow = {
+  id: string;
+  name: string;
+  label: string;
+  seat: string;
+  taxOfficeUrl: string;
+  scanUrls: string[];
+  collector: string;
+  enabled: boolean;
+  overrideUrls: string[];
 };
 
 type OppPayload = { total: number; rows: OpportunityRow[] };
@@ -54,10 +68,30 @@ export function Dashboard() {
   const [pending, startTransition] = useTransition();
   const [booting, setBooting] = useState(true);
 
+  const [countyCatalog, setCountyCatalog] = useState<CountyRow[]>([]);
+  const [enabled, setEnabled] = useState<string[]>([]);
+  const [countySearch, setCountySearch] = useState("");
+  const [overrideCounty, setOverrideCounty] = useState("");
+  const [overrideUrl, setOverrideUrl] = useState("");
+
   async function loadStatus() {
     const res = await fetch("/api/status", { cache: "no-store" });
     if (!res.ok) throw new Error("Could not load status");
     return (await res.json()) as StatusPayload;
+  }
+
+  async function loadCounties(search = "") {
+    const sp = new URLSearchParams();
+    if (search) sp.set("q", search);
+    const res = await fetch(`/api/counties?${sp}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Could not load Georgia counties");
+    const json = (await res.json()) as {
+      enabledCounties: string[];
+      counties: CountyRow[];
+    };
+    setEnabled(json.enabledCounties);
+    setCountyCatalog(json.counties);
+    return json;
   }
 
   async function loadOpportunities(params?: {
@@ -81,10 +115,11 @@ export function Dashboard() {
 
   async function refreshAll(opts?: { autoScan?: boolean }) {
     setError("");
-    const st = await loadStatus();
+    const [st] = await Promise.all([loadStatus(), loadCounties(countySearch)]);
     setStatus(st);
+    setEnabled(st.enabledCounties);
     if (opts?.autoScan && st.needsScan) {
-      setScanMessage("Daily window elapsed — running county scan…");
+      setScanMessage("Daily window elapsed — running enabled county scan…");
       const scanRes = await fetch("/api/scan", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -97,7 +132,7 @@ export function Dashboard() {
       setScanMessage(
         scanJson.usingSampleData
           ? "Scan finished with sample data (live county fetch failed)."
-          : `Scan finished — ${scanJson.inserted} new, ${scanJson.updated} updated.`,
+          : `Scan finished — ${scanJson.inserted} new, ${scanJson.updated} updated across ${scanJson.counties?.length ?? 0} counties.`,
       );
       const st2 = await loadStatus();
       setStatus(st2);
@@ -120,16 +155,13 @@ export function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const countyChips = useMemo(
-    () => [
-      { id: "all", label: "All counties" },
-      ...Object.entries(COUNTY_META).map(([id, meta]) => ({
-        id,
-        label: meta.short,
-      })),
-    ],
-    [],
-  );
+  const filterChips = useMemo(() => {
+    const chips = [{ id: "all", label: "All results" }];
+    for (const id of enabled.slice(0, 12)) {
+      chips.push({ id, label: id });
+    }
+    return chips;
+  }, [enabled]);
 
   function applyFilters() {
     startTransition(async () => {
@@ -146,7 +178,9 @@ export function Dashboard() {
   function runManualScan() {
     startTransition(async () => {
       try {
-        setScanMessage("Scanning Fulton, Henry, Cobb, and DeKalb…");
+        setScanMessage(
+          `Scanning ${enabled.length || "selected"} Georgia count${enabled.length === 1 ? "y" : "ies"}…`,
+        );
         const scanRes = await fetch("/api/scan", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -164,6 +198,76 @@ export function Dashboard() {
         await refreshAll({ autoScan: false });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Scan failed");
+      }
+    });
+  }
+
+  function saveEnabled(next: string[]) {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/counties", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ enabledCounties: next }),
+        });
+        if (!res.ok) throw new Error("Could not save county selection");
+        setEnabled(next);
+        await loadCounties(countySearch);
+        const st = await loadStatus();
+        setStatus(st);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Save failed");
+      }
+    });
+  }
+
+  function toggleCounty(id: string) {
+    const next = enabled.includes(id)
+      ? enabled.filter((x) => x !== id)
+      : [...enabled, id];
+    saveEnabled(next);
+  }
+
+  function applyPreset(preset: "metro" | "live" | "clear") {
+    if (preset === "metro") saveEnabled(["fulton", "henry", "cobb", "dekalb"]);
+    else if (preset === "live") {
+      const live = countyCatalog
+        .filter((c) => c.collector !== "directory")
+        .map((c) => c.id);
+      // catalog may be filtered by search — reload full then set
+      startTransition(async () => {
+        const all = await loadCounties("");
+        const ids = all.counties
+          .filter((c) => c.collector !== "directory")
+          .map((c) => c.id);
+        saveEnabled(ids.length ? ids : live);
+      });
+    } else saveEnabled([]);
+  }
+
+  function saveOverride() {
+    if (!overrideCounty || !overrideUrl.trim()) return;
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/counties", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            setOverride: {
+              countyId: overrideCounty,
+              scanUrls: [overrideUrl.trim()],
+            },
+            enabledCounties: enabled.includes(overrideCounty)
+              ? enabled
+              : [...enabled, overrideCounty],
+          }),
+        });
+        if (!res.ok) throw new Error("Could not save listing URL");
+        setOverrideUrl("");
+        await loadCounties(countySearch);
+        setScanMessage(`Saved listing URL for ${overrideCounty}.`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Override failed");
       }
     });
   }
@@ -190,14 +294,14 @@ export function Dashboard() {
       <header className="fade-up mb-8 grid gap-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
         <div>
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
-            Atlanta metro · tax deed radar
+            Georgia · all 159 counties
           </p>
           <h1 className="brand text-5xl leading-[0.95] text-[var(--ink)] sm:text-6xl">
             Metro Tax Scan
           </h1>
           <p className="mt-4 max-w-2xl text-base text-[var(--muted)] sm:text-lg">
-            Daily unpaid-tax and tax-sale opportunities across Fulton, Henry, Cobb,
-            and DeKalb — sourced from public county postings.
+            Search any Georgia county tax commissioner / sheriff tax-sale posting for
+            unpaid-tax opportunities. Enable counties, run daily, and track what is new.
           </p>
         </div>
         <div className="panel fade-up-delay rounded-2xl p-5">
@@ -206,14 +310,12 @@ export function Dashboard() {
               <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
                 Signed in
               </p>
-              <p className="mt-1 font-semibold">
-                {status?.viewer.name || "Investor"}
-              </p>
+              <p className="mt-1 font-semibold">{status?.viewer.name || "Investor"}</p>
             </div>
             <button
               type="button"
               onClick={runManualScan}
-              disabled={pending}
+              disabled={pending || enabled.length === 0}
               className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-deep)] disabled:opacity-60"
             >
               {pending ? "Working…" : "Run scan now"}
@@ -224,6 +326,11 @@ export function Dashboard() {
             <span className="font-medium text-[var(--ink)]">
               {when(status?.lastScan?.finished_at)} ET
             </span>
+          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Enabled:{" "}
+            <span className="font-medium text-[var(--ink)]">{enabled.length}</span> /{" "}
+            {status?.georgiaCountyCount ?? 159}
           </p>
           {status?.lastScan?.using_sample_data ? (
             <p className="mt-2 text-sm text-[var(--signal)]">Showing sample data fallback.</p>
@@ -250,8 +357,111 @@ export function Dashboard() {
       </section>
 
       <section className="panel fade-up mb-6 rounded-2xl p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="brand text-2xl">Georgia counties</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Select any local government. Specialized parsers cover Fulton, Henry, Cobb,
+              and DeKalb; others use the generic tax-office / tax-sale page harvester.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold ring-1 ring-[var(--line)]"
+              onClick={() => applyPreset("metro")}
+            >
+              Metro Atlanta
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold ring-1 ring-[var(--line)]"
+              onClick={() => applyPreset("live")}
+            >
+              All with URLs
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold ring-1 ring-[var(--line)]"
+              onClick={() => applyPreset("clear")}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-3 grid gap-3 md:grid-cols-[1.2fr_1fr_auto]">
+          <input
+            value={countySearch}
+            onChange={(e) => setCountySearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                startTransition(async () => {
+                  await loadCounties(countySearch);
+                });
+              }
+            }}
+            placeholder="Search county or seat (e.g. Chatham, Savannah)"
+            className="rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2.5 outline-none ring-[var(--accent)] focus:ring-2"
+          />
+          <div className="flex gap-2">
+            <select
+              value={overrideCounty}
+              onChange={(e) => setOverrideCounty(e.target.value)}
+              className="w-40 rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2.5"
+            >
+              <option value="">Add listing URL…</option>
+              {countyCatalog.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <input
+              value={overrideUrl}
+              onChange={(e) => setOverrideUrl(e.target.value)}
+              placeholder="https://…/tax-sale"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2.5 outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveOverride}
+            className="rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Save URL
+          </button>
+        </div>
+
+        <div className="max-h-56 overflow-y-auto rounded-xl border border-[var(--line)] bg-white/50 p-2">
+          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+            {countyCatalog.map((c) => (
+              <label
+                key={c.id}
+                className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-white"
+              >
+                <input
+                  type="checkbox"
+                  checked={enabled.includes(c.id)}
+                  onChange={() => toggleCounty(c.id)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium">{c.label}</span>
+                  <span className="block text-xs text-[var(--muted)]">
+                    {c.seat} · {c.collector}
+                    {c.overrideUrls?.length ? " · custom URL" : ""}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel fade-up mb-6 rounded-2xl p-5">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          {countyChips.map((chip) => (
+          {filterChips.map((chip) => (
             <button
               key={chip.id}
               type="button"
@@ -263,7 +473,7 @@ export function Dashboard() {
                   setTotal(opp.total);
                 });
               }}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+              className={`rounded-full px-3 py-1.5 text-sm font-medium capitalize transition ${
                 county === chip.id
                   ? "bg-[var(--ink)] text-white"
                   : "bg-white/70 text-[var(--ink)] hover:bg-white"
@@ -323,7 +533,7 @@ export function Dashboard() {
           {status.counties.map((c) => (
             <a
               key={c.county}
-              href={c.source_url || COUNTY_META[c.county as keyof typeof COUNTY_META]?.officialHome}
+              href={c.source_url || "#"}
               target="_blank"
               rel="noreferrer"
               className="panel block rounded-2xl p-4 transition hover:-translate-y-0.5"
@@ -334,7 +544,7 @@ export function Dashboard() {
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     c.status === "ok"
                       ? "bg-emerald-100 text-emerald-800"
-                      : c.status === "empty"
+                      : c.status === "empty" || c.status === "skipped"
                         ? "bg-slate-100 text-slate-700"
                         : c.status === "sample"
                           ? "bg-amber-100 text-amber-800"
@@ -366,7 +576,9 @@ export function Dashboard() {
           <p className="px-5 py-6 text-[var(--signal)]">{error}</p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-10 text-[var(--muted)]">
-            {booting ? "Loading county feeds…" : "No opportunities match these filters."}
+            {booting
+              ? "Loading Georgia county feeds…"
+              : "No opportunities match these filters. Enable counties and run a scan."}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -436,14 +648,17 @@ export function Dashboard() {
       <footer className="fade-up mt-8 max-w-3xl text-sm leading-relaxed text-[var(--muted)]">
         <p>{status?.georgiaNote}</p>
         <p className="mt-3">
-          For a true daily run from outside this app, hit{" "}
+          Daily automation: enable the counties you care about, then hit{" "}
           <code className="rounded bg-white/70 px-1.5 py-0.5">GET /api/cron</code> with{" "}
-          <code className="rounded bg-white/70 px-1.5 py-0.5">Authorization: Bearer $CRON_SECRET</code>.
-          The dashboard also auto-scans when the last successful run is older than 20 hours.
+          <code className="rounded bg-white/70 px-1.5 py-0.5">
+            Authorization: Bearer $CRON_SECRET
+          </code>
+          . The dashboard also auto-scans when the last successful run is older than 20 hours.
         </p>
         <p className="mt-3">
           Always verify parcel status, opening bid, title issues, and sale terms on the official
-          county source before paying or bidding. This is research software, not legal or investment advice.
+          county source before paying or bidding. This is research software, not legal or investment
+          advice.
         </p>
       </footer>
     </main>

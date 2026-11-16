@@ -1,4 +1,4 @@
-import { collectAllCounties } from "./collectors";
+import { collectCounties } from "./collectors";
 import { sql } from "./db";
 import { SAMPLE_RESULTS } from "./sample-data";
 import type { CountyCollectResult, RawOpportunity } from "./types";
@@ -109,7 +109,10 @@ async function upsertBatch(
   return { inserted, updated };
 }
 
-export async function runScan(triggerSource: string): Promise<{
+export async function runScan(
+  triggerSource: string,
+  countyIds?: string[],
+): Promise<{
   scanRunId: number;
   usingSampleData: boolean;
   results: CountyCollectResult[];
@@ -126,15 +129,21 @@ export async function runScan(triggerSource: string): Promise<{
   let usingSampleData = false;
 
   try {
-    results = await collectAllCounties();
-    const liveHits = results.filter((r) => r.status === "ok" || r.status === "empty").length;
+    results = await collectCounties(countyIds);
+    const liveHits = results.filter(
+      (r) => r.status === "ok" || r.status === "empty" || r.status === "skipped",
+    ).length;
     if (liveHits === 0) {
       usingSampleData = true;
       results = SAMPLE_RESULTS;
     }
 
     for (const result of results) {
-      if (result.status === "ok" || result.status === "sample" || result.status === "empty") {
+      if (
+        result.status === "ok" ||
+        result.status === "sample" ||
+        result.status === "empty"
+      ) {
         await sql(
           `update opportunities set is_active = false
            where county = $1 and is_active = true`,
@@ -173,7 +182,7 @@ export async function runScan(triggerSource: string): Promise<{
         usingSampleData,
         usingSampleData
           ? "Live county fetches failed; loaded sample opportunities."
-          : `Inserted ${inserted}, updated ${updated}.`,
+          : `Scanned ${results.length} counties — inserted ${inserted}, updated ${updated}.`,
         scanRunId,
       ],
     );

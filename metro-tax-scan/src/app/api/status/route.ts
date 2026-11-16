@@ -1,12 +1,15 @@
 import { requireIdentity } from "../../../../cursor/identity";
+import { GEORGIA_COUNTIES } from "@/server/georgia/counties";
 import { sql } from "@/server/db";
 import { getLastSuccessfulScan, shouldAutoScan } from "@/server/scan";
+import { getSettings } from "@/server/settings";
 
 export async function GET(request: Request) {
   const identity = await requireIdentity(request);
   if (identity instanceof Response) return identity;
 
   const last = await getLastSuccessfulScan();
+  const settings = await getSettings();
   const countyRows = await sql<{
     county: string;
     status: string;
@@ -41,6 +44,8 @@ export async function GET(request: Request) {
       lastScan: last,
       needsScan: await shouldAutoScan(),
       counties: countyRows,
+      enabledCounties: settings.enabledCounties,
+      georgiaCountyCount: GEORGIA_COUNTIES.length,
       stats: {
         active: Number(stats[0]?.active ?? 0),
         newly: Number(stats[0]?.newly ?? 0),
@@ -51,7 +56,7 @@ export async function GET(request: Request) {
         email: identity.email,
       },
       georgiaNote:
-        "Georgia runs redeemable tax-deed sales (not classic tax-lien certificates). Profit comes from auction purchases and/or the statutory redemption premium if the owner redeems.",
+        "Georgia runs redeemable tax-deed sales (not classic tax-lien certificates). Profit comes from auction purchases and/or the statutory redemption premium if the owner redeems. Enable any of the 159 counties; add a tax-sale listing URL when the directory has no scrape target yet.",
     },
     { headers: { "cache-control": "private, no-store" } },
   );

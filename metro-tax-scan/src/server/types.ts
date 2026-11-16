@@ -1,4 +1,10 @@
-export type CountyId = "fulton" | "henry" | "cobb" | "dekalb";
+import {
+  GEORGIA_COUNTY_BY_ID,
+  METRO_ATLANTA_IDS,
+  type GeorgiaCounty,
+} from "./georgia/counties";
+
+export type CountyId = string;
 
 export type ListType = "tax_sale" | "delinquent" | "sale_notice";
 
@@ -18,7 +24,7 @@ export type RawOpportunity = {
 
 export type CountyCollectResult = {
   county: CountyId;
-  status: "ok" | "empty" | "error" | "sample";
+  status: "ok" | "empty" | "error" | "sample" | "skipped";
   sourceUrl: string;
   message: string;
   opportunities: RawOpportunity[];
@@ -44,30 +50,20 @@ export type OpportunityRow = {
   watched?: boolean;
 };
 
+/** @deprecated Prefer GEORGIA_COUNTY_BY_ID — kept for Metro Atlanta chip labels. */
 export const COUNTY_META: Record<
-  CountyId,
+  string,
   { label: string; short: string; officialHome: string }
-> = {
-  fulton: {
-    label: "Fulton County",
-    short: "Fulton",
-    officialHome:
-      "https://www.fultoncountyga.gov/inside-fulton-county/fulton-county-departments/sheriff/tax-sales",
-  },
-  henry: {
-    label: "Henry County",
-    short: "Henry",
-    officialHome: "https://www.henrycountytax.com/172/Property-for-Tax-Sale",
-  },
-  cobb: {
-    label: "Cobb County",
-    short: "Cobb",
-    officialHome: "https://www.cobbtax.gov/property/delinquent_taxes/index.php",
-  },
-  dekalb: {
-    label: "DeKalb County",
-    short: "DeKalb",
-    officialHome:
-      "https://publicaccess.dekalbtaxga.gov/forms/htmlframe.aspx?mode=content/search/tax_sale_listing.html",
-  },
-};
+> = Object.fromEntries(
+  METRO_ATLANTA_IDS.map((id) => {
+    const c = GEORGIA_COUNTY_BY_ID[id] as GeorgiaCounty;
+    return [
+      id,
+      {
+        label: c.label,
+        short: c.name,
+        officialHome: c.scanUrls[0] || c.taxOfficeUrl,
+      },
+    ];
+  }),
+);

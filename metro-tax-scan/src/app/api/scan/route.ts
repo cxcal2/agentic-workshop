@@ -10,8 +10,9 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as {
       trigger?: string;
+      counties?: string[];
     };
-    const result = await runScan(body.trigger || "manual");
+    const result = await runScan(body.trigger || "manual", body.counties);
     return Response.json(
       {
         ok: true,
