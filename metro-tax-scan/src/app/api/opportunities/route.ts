@@ -1,6 +1,6 @@
 import { requireIdentity } from "../../../../cursor/identity";
-import { sql } from "@/lib/db";
-import type { OpportunityRow } from "@/lib/types";
+import { sql } from "@/server/db";
+import type { OpportunityRow } from "@/server/types";
 
 export async function GET(request: Request) {
   const identity = await requireIdentity(request);

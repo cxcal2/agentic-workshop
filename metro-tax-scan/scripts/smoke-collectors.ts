@@ -1,7 +1,7 @@
-import { collectCobb } from "../src/lib/collectors/cobb";
-import { collectDekalb } from "../src/lib/collectors/dekalb";
-import { collectFulton } from "../src/lib/collectors/fulton";
-import { collectHenry } from "../src/lib/collectors/henry";
+import { collectCobb } from "../src/server/collectors/cobb";
+import { collectDekalb } from "../src/server/collectors/dekalb";
+import { collectFulton } from "../src/server/collectors/fulton";
+import { collectHenry } from "../src/server/collectors/henry";
 
 async function main() {
   const fast = await Promise.all([collectDekalb(), collectHenry(), collectFulton()]);

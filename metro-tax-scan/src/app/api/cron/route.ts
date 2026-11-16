@@ -1,4 +1,4 @@
-import { runScan, shouldAutoScan } from "@/lib/scan";
+import { runScan, shouldAutoScan } from "@/server/scan";
 
 export const maxDuration = 300;
 

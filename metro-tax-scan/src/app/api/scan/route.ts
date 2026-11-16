@@ -1,5 +1,5 @@
 import { requireIdentity } from "../../../../cursor/identity";
-import { runScan } from "@/lib/scan";
+import { runScan } from "@/server/scan";
 
 export const maxDuration = 300;
 

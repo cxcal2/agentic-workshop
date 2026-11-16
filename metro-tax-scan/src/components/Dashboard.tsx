@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { COUNTY_META, type OpportunityRow } from "@/lib/types";
+import { COUNTY_META, type OpportunityRow } from "@/server/types";
 
 type StatusPayload = {
   lastScan: {

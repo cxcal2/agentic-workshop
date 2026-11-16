@@ -1,6 +1,6 @@
 import { requireIdentity } from "../../../../cursor/identity";
-import { sql } from "@/lib/db";
-import { getLastSuccessfulScan, shouldAutoScan } from "@/lib/scan";
+import { sql } from "@/server/db";
+import { getLastSuccessfulScan, shouldAutoScan } from "@/server/scan";
 
 export async function GET(request: Request) {
   const identity = await requireIdentity(request);

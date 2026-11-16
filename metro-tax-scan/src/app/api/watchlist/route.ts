@@ -1,5 +1,5 @@
 import { requireIdentity } from "../../../../cursor/identity";
-import { sql } from "@/lib/db";
+import { sql } from "@/server/db";
 
 export async function POST(request: Request) {
   const identity = await requireIdentity(request);
