@@ -4,6 +4,18 @@ Daily unpaid property-tax and tax-sale opportunity scanner for **any Georgia cou
 
 This app lives in the `metro-tax-scan/` folder of the repository. Run all commands from that directory unless noted otherwise.
 
+## Use as a Cursor app
+
+Metro Tax Scan is a **Cursor-hosted web app** (private by default):
+
+1. Publish from this folder with Cursor Cloud (`publish-app` / the Publish control on the agent chat).
+2. In the publish dialog, keep visibility **private** (or **team**) so deal data stays behind Cursor sign-in.
+3. After publish, open the app from your Cursor apps list — it runs as a standalone signed-in product, not just a local repo.
+4. Bind the `CRON_SECRET` secret in Cursor, then schedule a daily `GET /api/cron` with `Authorization: Bearer $CRON_SECRET` for unattended scans.
+5. On phone or desktop, you can also **Add to Home Screen** / install from the browser (PWA manifest + icons are included).
+
+Local `npm run dev` is for development; the published Cursor app is the day-to-day product surface.
+
 ## What it does
 
 - Registry of every Georgia county with tax-office links (from GA DOR where available)

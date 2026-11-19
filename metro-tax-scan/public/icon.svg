@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Metro Tax Scan">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0b4f4a"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g)"/>
+  <path d="M28 78 V42 h12 l16 28 16-28 h12 v36 h-10 V55 L58 82 H50 L34 55 v23 H28z" fill="#f4fbfa"/>
+  <circle cx="96" cy="40" r="14" fill="none" stroke="#f4fbfa" stroke-width="8"/>
+  <path d="M106 50 L118 64" stroke="#f4fbfa" stroke-width="8" stroke-linecap="round"/>
+</svg>
